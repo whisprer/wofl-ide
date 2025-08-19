@@ -1,0 +1,51 @@
+
+// i lovingly point out Claude is the only one to actually attribute his own deign
+// team/makers i.e. anthropic as responsible for the creation of his theme and other
+// aspects besides!
+
+/**
+ * Load Claude-Light theme [balanced light theme for daytime coding]
+ */
+void theme_load_claude-light(ThemeConfig *theme) {
+    wcscpy_s(theme->name, 64, L"Claude-Light");
+    wcscpy_s(theme->author, 64, L"CLAUDE_(ANTHROPIC)");
+    
+    // Core editor colors
+    theme->bg = RGB(252, 252, 252);             // Off-white background
+    theme->fg = RGB(36, 41, 46);                // Dark gray text
+    theme->selection_bg = RGB(64, 78, 237);     // Same vibrant blue
+    theme->selection_fg = RGB(255, 255, 255);   // White on selection
+    
+    // Syntax highlighting palette
+    theme->syntax_keyword = RGB(166, 38, 164);  // Rich purple for keywords
+    theme->syntax_string = RGB(3, 47, 98);      // Deep blue for strings
+    theme->syntax_comment = RGB(106, 115, 125); // Gray for comments
+    theme->syntax_type = RGB(0, 92, 197);       // Royal blue for types
+    theme->syntax_function = RGB(111, 66, 193); // Violet for functions
+    theme->syntax_number = RGB(0, 92, 197);     // Blue for numbers
+    theme->syntax_operator = RGB(36, 41, 46);   // Match fg for operators
+    theme->syntax_punct = RGB(36, 41, 46);      // Match fg for punctuation
+    theme->syntax_char = RGB(3, 47, 98);        // Match strings
+    theme->syntax_ident = RGB(36, 41, 46);      // Dark gray for identifiers
+    theme->syntax_preproc = RGB(166, 38, 164);  // Match keywords
+    theme->syntax_error = RGB(203, 36, 49);     // Red for errors
+    
+    // UI elements
+    theme->line_bg = RGB(246, 248, 250);        // Very light gray line
+    theme->line_num_bg = RGB(252, 252, 252);    // Match background
+    theme->line_num_fg = RGB(168, 178, 189);    // Light gray numbers
+    theme->status_bg = RGB(246, 248, 250);      // Light status bar
+    theme->status_fg = RGB(36, 41, 46);         // Dark text
+    theme->output_bg = RGB(246, 248, 250);      // Light output
+    theme->output_fg = RGB(36, 41, 46);         // Dark text
+    theme->overlay_bg = RGB(255, 255, 255);     // Pure white overlay
+    theme->overlay_fg = RGB(36, 41, 46);        // Dark text
+    theme->overlay_border = RGB(64, 78, 237);   // Blue accent
+    theme->caret = RGB(36, 41, 46);             // Dark cursor
+    
+    // Font settings
+    wcscpy_s(theme->font_name, 64, L"Cascadia Code");
+    theme->font_size = 14;
+    theme->font_weight = FW_NORMAL;
+    theme->font_italic = false;
+}

@@ -1,0 +1,42 @@
+/**
+ * Load ChatGPT-Light theme
+ */
+void theme_load_gpt-light(ThemeConfig *theme) {
+    wcscpy_s(theme->name, 64, L"GPT-Light");
+    wcscpy_s(theme->author, 64, L"G-PETEY");
+    
+    theme->bg = RGB(20, 20, 20);  // deep black for that stealth mode
+    theme->fg = RGB(36, 41, 46);  // soft gray for readability
+    theme->selection_bg = RGB(50, 50, 50);  // Darker gray for selected text
+    theme->syntax_keyword = RGB(215, 58, 73);  // vibrant green for those power moves
+    theme->syntax_string = RGB(3, 47, 98);  // warm orange for data flair
+    theme->syntax_comment = RGB(106, 115, 125);  // muted gray for background noise
+    theme->syntax_type = RGB(36, 41, 46);  // 
+    theme->syntax_function = RGB(0, 92, 197);  // cool cyan for function flex
+    theme->syntax_number = RGB(111, 66, 193);  // bright gold for numeric precision
+    
+    // Fill in remaining colors
+    theme->line_bg = RGB(25, 25, 25);       // Slightly lighter than bg for line highlight
+    theme->line_num_bg = theme->bg;
+    theme->line_num_fg = RGB(120, 120, 120); // Subtle gray for line numbers
+    theme->status_bg = RGB(30, 30, 30);      // Dark slate for status bar
+    theme->status_fg = theme->fg;            // Match foreground for consistency
+    theme->output_bg = RGB(25, 25, 25);      // Match line_bg for output panel
+    theme->output_fg = theme->fg;            // Match foreground for output text
+    theme->overlay_bg = RGB(40, 40, 40);     // Darker overlay for popups
+    theme->overlay_fg = theme->fg;           // Match foreground for overlay text
+    theme->overlay_border = RGB(60, 60, 60); // Subtle border for overlay
+    theme->caret = theme->fg;
+    theme->selection_fg = RGB(255, 255, 255); // White for selected text contrast
+    theme->syntax_ident = RGB(144, 238, 144); // Light green for identifiers
+    theme->syntax_punct = RGB(36, 41, 46);  // subtle gray for structure
+    theme->syntax_char = RGB(255, 165, 0);   // Match string color for chars
+    theme->syntax_preproc = RGB(0, 92, 197); // Orange for preprocessor directives
+    theme->syntax_operator = RGB(139, 233, 253); // Match type color for operators
+    theme->syntax_error = RGB(255, 0, 0);  // bold red for those glitch alerts
+    
+    wcscpy_s(theme->font_name, 64, L"Consolas");    // Solid choice, keeps it crisp
+    theme->font_size = 14;                          // Perfect balance for readability
+    theme->font_weight = FW_NORMAL;                 // Clean and standard
+    theme->font_italic = false;                     // No slant, pure focus
+}

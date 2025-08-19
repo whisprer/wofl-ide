@@ -1,0 +1,47 @@
+
+/**
+ * Load Claude-dark theme [crafted for optimal readability and aesthetic appeal]
+ */
+void theme_load_Claude-dark(ThemeConfig *theme) {
+    wcscpy_s(theme->name, 64, L"Claude-dark");
+    wcscpy_s(theme->author, 64, L"CLAUDE_(ANTHROPIC)");
+    
+    // Core editor colors
+    theme->bg = RGB(31, 31, 31);                // Soft charcoal background
+    theme->fg = RGB(212, 212, 212);             // Light gray text for comfort
+    theme->selection_bg = RGB(64, 78, 237);     // Vibrant blue selection
+    theme->selection_fg = RGB(255, 255, 255);   // Pure white selected text
+    
+    // Syntax highlighting palette
+    theme->syntax_keyword = RGB(197, 134, 192); // Soft purple for keywords
+    theme->syntax_string = RGB(206, 145, 120);  // Warm peach for strings
+    theme->syntax_comment = RGB(106, 153, 85);  // Muted green for comments
+    theme->syntax_type = RGB(78, 201, 176);     // Teal for types
+    theme->syntax_function = RGB(220, 220, 170); // Pale yellow for functions
+    theme->syntax_number = RGB(181, 206, 168);  // Mint green for numbers
+    theme->syntax_operator = RGB(212, 212, 212); // Match fg for operators
+    theme->syntax_punct = RGB(212, 212, 212);   // Match fg for punctuation
+    theme->syntax_char = RGB(206, 145, 120);    // Match strings for chars
+    theme->syntax_ident = RGB(156, 220, 254);   // Sky blue for identifiers
+    theme->syntax_preproc = RGB(197, 134, 192); // Match keywords for preprocessor
+    theme->syntax_error = RGB(244, 71, 71);     // Bright red for errors
+    
+    // UI elements
+    theme->line_bg = RGB(37, 37, 37);           // Subtle line highlighting
+    theme->line_num_bg = RGB(31, 31, 31);       // Match main background
+    theme->line_num_fg = RGB(133, 133, 133);    // Subdued gray for line numbers
+    theme->status_bg = RGB(37, 37, 37);         // Slightly lighter status bar
+    theme->status_fg = RGB(212, 212, 212);      // Match main text
+    theme->output_bg = RGB(24, 24, 24);         // Darker output panel
+    theme->output_fg = RGB(204, 204, 204);      // Slightly dimmer output text
+    theme->overlay_bg = RGB(42, 42, 42);        // Command palette background
+    theme->overlay_fg = RGB(212, 212, 212);     // Match main text
+    theme->overlay_border = RGB(64, 78, 237);   // Blue accent border
+    theme->caret = RGB(255, 255, 255);          // White cursor for visibility
+    
+    // Font settings
+    wcscpy_s(theme->font_name, 64, L"Cascadia Code"); // Modern coding font
+    theme->font_size = 14;                            // Comfortable size
+    theme->font_weight = FW_NORMAL;                   // Regular weight
+    theme->font_italic = false;                       // No italics
+}

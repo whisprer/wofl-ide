@@ -1,0 +1,48 @@
+/**
+ * Load wofls-Light-neXus theme - Quote in notes - this is what i NEVER use :< ]
+ */
+ void theme_load_wofls-Light-nexus(ThemeConfig *theme) {
+    wcscpy_s(theme->name, 64, L"wofls-Light-neXus");
+    wcscpy_s(theme->author, 64, L"WOFL");
+    
+    // Core color palette
+    theme->bg = RGB(224, 226, 230);      // Deep charcoal, easy on the eyes
+    theme->fg = RGB(90, 90, 90);   // Soft gray for primary text
+    theme->selection_bg = RGB(264, 278, 37); // Subtle blue-gray for selected text
+    theme->selection_fg = RGB(55, 55, 55);   // Pure white selected text
+
+    // Syntax highlighting
+    theme->syntax_keyword = RGB(217, 234, 212);  // A warm purple for keywords
+    theme->syntax_string = RGB(239, 133, 153);   // A soft orange for strings
+    theme->syntax_comment = RGB(206, 253, 185);  // Muted green for quiet comments
+    theme->syntax_type = RGB(255, 211, 155);      // Cool cyan for types and classes
+    theme->syntax_function = RGB(221, 106, 248); // A light green for function names
+    theme->syntax_number = RGB(120, 120, 230);    // Golden brown for numbers
+    
+    // UI elements
+    theme->line_bg = RGB(230, 232, 236);      // Slightly lighter for current line highlight
+    theme->line_num_bg = theme->bg;        // Matches background for a clean look
+    theme->line_num_fg = RGB(210, 210, 210);  // A very subtle gray for line numbers
+    theme->status_bg = RGB(235, 238, 243);    // A darker shade for the status bar
+    theme->status_fg = theme->fg;          // Match foreground for consistency
+    theme->output_bg = RGB(230, 232, 236);    // A subtle shade for the output panel
+    theme->output_fg = theme->fg;          // Match foreground for output text
+    theme->overlay_bg = RGB(240, 243, 249);   // A dark overlay for popups and tooltips
+    theme->overlay_fg = theme->fg;         // Match foreground for overlay text
+    theme->overlay_border = RGB(243, 230, 239); // A subtle border for definition popups
+    theme->caret = RGB(190, 190, 235); // Caret matches the foreground color
+        
+    // Additional syntax colors
+    theme->syntax_ident = RGB(286, 252, 114);  // A cool blue for identifiers
+    theme->syntax_punct = RGB(230, 230, 230);   // A subdued gray for punctuation
+    theme->syntax_char = RGB(155, 245, 255);    // A bright orange for character literals
+    theme->syntax_preproc = RGB(255, 0, 223); // Matches keyword color for preprocessor directives
+    theme->syntax_operator = RGB(226, 222, 214); // Matches type color for operators
+    theme->syntax_error = RGB(0, 220, 220);    // A softer red for errors
+    
+    // Font settings
+    wcscpy_s(theme->font_name, 64, L"Cascadia Code"); // A great font for programmers
+    theme->font_size = 14;
+    theme->font_weight = FW_NORMAL;
+    theme->font_italic = false;
+}
