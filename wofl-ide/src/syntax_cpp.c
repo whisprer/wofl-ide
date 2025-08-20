@@ -145,9 +145,9 @@ void syntax_scan_cpp(const wchar_t *line, int len, TokenSpan *out, int *out_n) {
             out[m++] = (TokenSpan){start, i - start, TK_NUM};
         }
         // Identifier or keyword
-        else if (is_word_char(ch)) {
+        else if (iswalpha(ch) || ch == L'_') {
             int start = i++;
-            while (i < len && (is_word_char(line[i]) || line[i] == L':')) {
+            while (i < len && (iswalnum(line[i]) || line[i] == L'_')) {
                 i++;
             }
             
@@ -170,6 +170,7 @@ void syntax_scan_cpp(const wchar_t *line, int len, TokenSpan *out, int *out_n) {
             
             out[m++] = token;
         }
+        
         // Operators and punctuation
         else {
             // Check for multi-character operators

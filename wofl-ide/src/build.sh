@@ -1,12 +1,4 @@
 @echo off
-rem ==================== build.bat ====================
-rem Anti-loop guard
-if defined WOFL_BUILD_RUNNING (
-    echo ERROR: Detected recursive call to build.bat! Check for 'call build.bat' or similar.
-    exit /b 1
-)
-set WOFL_BUILD_RUNNING=1
-
 echo ========================================
 echo Building WOFL Ultra-Minimal IDE
 echo ========================================
@@ -25,11 +17,8 @@ if %ERRORLEVEL% NEQ 0 (
     echo 2. editor.h has matching #ifndef/#endif
     echo 3. File names match (cmd_palette.c vs command_palette.c)
     echo ========================================
-    set WOFL_BUILD_RUNNING=
     exit /b 1
 )
 echo ========================================
 echo BUILD SUCCEEDED
 echo ========================================
-set WOFL_BUILD_RUNNING=
-exit /b 0

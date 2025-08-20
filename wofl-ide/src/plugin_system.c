@@ -3,8 +3,16 @@
 
 #include "plugin_system.h"
 #include <stdio.h>
+#include "editor.h"
+#include <windows.h>
+#include <shlobj.h>
+#include "plugin_git.h"
 
 static PluginManager g_plugin_manager = {0};
+
+extern void syntax_scan_cpp(const wchar_t *line, int len, TokenSpan *out, int *out_n);
+extern void syntax_scan_asm(const wchar_t *line, int len, TokenSpan *out, int *out_n);
+extern void syntax_scan_csv(const wchar_t *line, int len, TokenSpan *out, int *out_n);
 
 /**
  * Initialize plugin manager
@@ -12,7 +20,7 @@ static PluginManager g_plugin_manager = {0};
 void plugin_manager_init(PluginManager *pm) {
     pm->plugins = NULL;
     pm->plugin_count = 0;
-    
+
     // Get plugin directory
     wchar_t appdata[MAX_PATH];
     if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, appdata))) {
@@ -153,7 +161,13 @@ Plugin* plugin_create_csv(void) {
  * Git Plugin Implementation
  */
 typedef struct {
-    GitPlugin git_state;
+    bool enabled;
+    bool auto_commit;
+    wchar_t repo_path[WOFL_MAX_PATH];
+} GitState;
+
+typedef struct {
+    GitState git_state;
 } GitPluginData;
 
 static bool git_plugin_init(Plugin *self, AppState *app) {

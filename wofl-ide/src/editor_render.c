@@ -8,7 +8,7 @@
 /**
  * Initialize default theme colors and fonts
  */
-void theme_init_default(Theme *th) {
+ void theme_init_default(Theme *th) {
     th->font_px = 16;
     th->col_bg = RGB(16, 18, 20);
     th->col_fg = RGB(220, 220, 220);
@@ -27,6 +27,25 @@ void theme_init_default(Theme *th) {
     th->syn_colors[TK_PUNCT]   = RGB(200, 200, 200);  // Light gray
 }
 
+void theme_default(Theme *th) {
+    th->font_px = 16;
+    th->col_bg = RGB(16, 18, 20);
+    th->col_fg = RGB(220, 220, 220);
+    th->col_sel_bg = RGB(50, 80, 120);
+    th->col_status_bg = RGB(32, 36, 40);
+    th->col_output_bg = RGB(10, 10, 10);
+    
+    // Syntax highlighting colors
+    th->syn_colors[TK_TEXT]    = th->col_fg;
+    th->syn_colors[TK_KW]      = RGB(120, 170, 255);
+    th->syn_colors[TK_IDENT]   = RGB(220, 220, 220);
+    th->syn_colors[TK_NUM]     = RGB(247, 140, 108);
+    th->syn_colors[TK_STR]     = RGB(195, 232, 141);
+    th->syn_colors[TK_CHAR]    = RGB(195, 232, 141);
+    th->syn_colors[TK_COMMENT] = RGB(106, 153, 85);
+    th->syn_colors[TK_PUNCT]   = RGB(200, 200, 200);
+}
+
 /**
  * Create font with specified pixel size
  */
@@ -40,9 +59,6 @@ static HFONT create_editor_font(int px_size) {
     return CreateFontIndirectW(&lf);
 }
 
-/**
- * Update font metrics for rendering
- */
 void editor_update_metrics(AppState *app, HDC hdc) {
     if (app->theme.hFont) {
         DeleteObject(app->theme.hFont);
@@ -54,10 +70,13 @@ void editor_update_metrics(AppState *app, HDC hdc) {
     TEXTMETRICW tm;
     GetTextMetricsW(hdc, &tm);
     app->theme.line_h = tm.tmHeight + 2;
+}
     
-    SIZE size;
-    GetTextExtentPoint32W(hdc, L"M", 1, &size);
-    app->theme.ch_w = size.cx;
+/**
+ * Layout metrics wrapper
+ */
+void editor_layout_metrics(AppState *app, HDC hdc) {
+    editor_update_metrics(app, hdc);  // This is fine - calls different function
 }
 
 /**
@@ -247,7 +266,7 @@ void editor_paint(AppState *app, HDC hdc) {
         size_t caret_idx = editor_linecol_to_index(&app->buf, 
                                                     app->caret.line, app->caret.col);
         size_t anchor_idx = editor_linecol_to_index(&app->buf,
-            app->sel_anchor.line, app->sel_anchor.col);
+                                                    app->sel_anchor.line, app->sel_anchor.col);
         if (caret_idx != anchor_idx) {
             has_selection = true;
             sel_start = min_size(caret_idx, anchor_idx);
@@ -278,7 +297,9 @@ void editor_paint(AppState *app, HDC hdc) {
         // Syntax highlight
         TokenSpan tokens[WOFL_MAX_TOKENS];
         int token_count = 0;
-        syntax->scan_line(line_text, line_len, tokens, &token_count);
+        if (syntax && syntax->scan_line) {  // Safety check
+            syntax->scan_line(line_text, line_len, tokens, &token_count);
+        }
         
         int x = 4 - app->left_col * app->theme.ch_w;
         
@@ -322,14 +343,13 @@ void editor_paint(AppState *app, HDC hdc) {
     
     // Draw status bar text
     wchar_t status[256];
-    swprintf(status, 256, L"%ls%s  |  Ln %d, Col %d  |  %ls  |  %ls",
+    swprintf(status, 256, L"%ls%s  |  Ln %d, Col %d  |  %ls",
              app->file_name[0] ? app->file_name : L"(untitled)",
              app->buf.dirty ? L"*" : L"",
              app->caret.line + 1, app->caret.col + 1,
-             syntax_get(app->lang)->keywords[0] ? L"Syntax ON" : L"Plain Text",
              app->out.visible ? L"OUT:ON" : L"OUT:OFF");
     draw_text_ex(hdc, 6, status_rect.top + 2, status, (int)wcslen(status), 
-                RGB(180, 180, 180));
+                 RGB(180, 180, 180));
     
     // Draw overlay if active
     if (app->overlay_active) {
@@ -338,9 +358,9 @@ void editor_paint(AppState *app, HDC hdc) {
         
         wchar_t overlay_text[WOFL_CMD_MAX + 64];
         swprintf(overlay_text, WOFL_CMD_MAX + 64, L"%ls %ls", 
-                app->overlay_prompt, app->overlay_text);
+                 app->overlay_prompt, app->overlay_text);
         draw_text_ex(hdc, 8, 3, overlay_text, (int)wcslen(overlay_text), 
-                    RGB(235, 235, 235));
+                     RGB(235, 235, 235));
         
         // Draw overlay cursor
         int cursor_x = 8 + (int)(wcslen(app->overlay_prompt) + 1 + app->overlay_cursor) * app->theme.ch_w;

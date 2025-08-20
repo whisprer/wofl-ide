@@ -6,8 +6,44 @@
 #include <shellapi.h>
 #include <wchar.h>
 
+// --- Fallback for projects where the syntax enum doesn't define LANG_PLAIN ---
+#ifndef LANG_PLAIN
+#define LANG_PLAIN 0
+#endif
+// -----------------------------------------------------------------------------
+
 // Global application state
 static AppState g_app;
+
+// ===== Forward Declarations =====
+static void update_window_title(HWND hwnd);
+static void set_current_file(const wchar_t *path);
+static void open_file_dialog(void);
+static void save_file_as_dialog(void);
+static void save_file(void);
+static void ensure_caret_visible(void);
+static int get_line_length(int line);
+static bool get_selection(size_t *start, size_t *end);
+static void clear_selection(void);
+static void move_left(bool select);
+static void move_right(bool select);
+static void move_up(bool select);
+static void move_down(bool select);
+static void insert_text(const wchar_t *text, int len);
+static void delete_range(size_t start, size_t end);
+static void backspace(void);
+static void delete_forward(void);
+static void insert_newline(void);
+static void insert_tab(void);
+static void copy_to_clipboard(void);
+static void paste_from_clipboard(void);
+static void run_current_file(void);
+static void open_find_dialog(void);
+static void open_goto_dialog(void);
+static void overlay_insert_char(wchar_t ch);
+static void overlay_backspace(void);
+static void overlay_confirm(void);
+static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 // ===== Helper Functions =====
 
@@ -81,7 +117,7 @@ static void open_file_dialog(void) {
             
             set_current_file(path);
             config_set_default_run_cmd(&g_app);
-            config_load_run_cmd(&g_app);
+            config_try_load_run_cmd(&g_app);
             
             InvalidateRect(g_app.hwnd, NULL, TRUE);
         }
@@ -412,8 +448,7 @@ static void copy_to_clipboard(void) {
         buffer[i] = gb_char_at(&g_app.buf, start + i);
     }
     buffer[len] = L'\0';
-    GlobalUnlock(mem
-);
+    GlobalUnlock(mem);
     
     if (OpenClipboard(g_app.hwnd)) {
         EmptyClipboard();
@@ -496,7 +531,7 @@ static void run_current_file(void) {
     
     // Setup run command
     config_set_default_run_cmd(&g_app);
-    config_load_run_cmd(&g_app);
+    config_try_load_run_cmd(&g_app);
     
     // Execute
     run_spawn(&g_app, g_app.run_cmd);
@@ -561,19 +596,17 @@ static void overlay_backspace(void) {
  * Confirm overlay action
  */
 static void overlay_confirm(void) {
+    // Check if shift is held for reverse search
+    bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
+    
     switch (g_app.mode) {
         case MODE_FIND:
             if (g_app.overlay_len > 0) {
-                g_app.find.active = true;
                 wcscpy_s(g_app.find.text, WOFL_FIND_MAX, g_app.overlay_text);
                 g_app.find.len = (int)wcslen(g_app.find.text);
-                g_app.find.case_insensitive = true;
-                g_app.find.wrap_around = true;
+                g_app.find.active = true;
                 g_app.find.last_dir_down = true;
-                
-                find_next(&g_app, g_app.find.text, 
-                         g_app.find.case_insensitive,
-                         g_app.find.wrap_around, true);
+                find_next(&g_app, g_app.find.text, true, true, !shift);
             }
             break;
             
@@ -616,22 +649,23 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
         case WM_CREATE: {
             g_app.hwnd = hwnd;
 
-            // PluginManager pm;
-            // plugin_manager_init(&pm);
+            // Initialize critical sections FIRST
+            InitializeCriticalSection(&g_app.out.lock);
 
             // Initialize theme
-            theme_init_default(&g_app.theme);
+            theme_default(&g_app.theme);
             HDC hdc = GetDC(hwnd);
-            editor_update_metrics(&g_app, hdc);
+            editor_layout_metrics(&g_app, hdc);
             ReleaseDC(hwnd, hdc);
-            
-            // ThemeConfig theme;
-            // theme_load_gemini-dark(&theme);  // Or user's preference
-            // theme_apply(&app, &theme);
 
             // Initialize buffer
             gb_init(&g_app.buf);
-            
+
+            // Initialize output buffer
+            gb_init(&g_app.out.buf);
+            g_app.out.height_px = 150;  // Default output height
+            g_app.out.visible = false;
+
             // Initialize state
             g_app.tab_width = WOFL_DEFAULT_TAB;
             g_app.mode = MODE_EDIT;
@@ -639,15 +673,31 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             g_app.left_col = 0;
             g_app.caret.line = 0;
             g_app.caret.col = 0;
+            g_app.sel_anchor = g_app.caret;
+            g_app.selecting = false;
+            g_app.overlay_active = false;
+            g_app.overwrite_mode = false;
+
+            // CRITICAL: Initialize line cache to prevent crashes
+            g_app.total_lines_cache = 1;  // At least one line
             g_app.need_recount = true;
-            
-            // Initialize syntax system
-            // syntax_init();
-            
+
+            // Initialize find state
+            g_app.find.active = false;
+            g_app.find.len = 0;
+
+            // Initialize file paths
+            g_app.file_path[0] = L'\0';
+            g_app.file_dir[0] = L'\0';
+            g_app.file_name[0] = L'\0';
+
+            // Default language
+            g_app.lang = LANG_PLAIN;
+
             update_window_title(hwnd);
             return 0;
         }
-        
+
         case WM_SIZE: {
             g_app.client_rc.right = LOWORD(lParam);
             g_app.client_rc.bottom = HIWORD(lParam);
@@ -665,7 +715,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             HDC hdc = BeginPaint(hwnd, &ps);
             
             if (!g_app.theme.hFont) {
-                editor_update_metrics(&g_app, hdc);
+                editor_layout_metrics(&g_app, hdc);
             }
             
             if (g_app.need_recount) {
@@ -746,37 +796,37 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             return 0;
         
         case WM_CHAR: {
-            wchar_t ch = (wchar_t)wParam;
-            
-            // Handle overlay input
-            if (g_app.overlay_active) {
-                if (ch == L'\r' || ch == L'\n') {
-                    overlay_confirm();
-                } else if (ch == L'\b') {
-                    if (g_app.mode == MODE_PALETTE) {
-                        palette_backspace(&g_app);
-                    } else {
-                        overlay_backspace();
-                    }
-                    InvalidateRect(hwnd, NULL, FALSE);
-                } else if (ch == 27) {  // ESC
-                    if (g_app.mode == MODE_PALETTE) {
-                        palette_cancel(&g_app);
-                    } else {
-                        g_app.overlay_active = false;
-                        g_app.mode = MODE_EDIT;
-                        InvalidateRect(hwnd, NULL, FALSE);
-                    }
-                } else if (ch >= 32) {
-                    if (g_app.mode == MODE_PALETTE) {
-                        palette_handle_char(&g_app, ch);
-                    } else {
-                        overlay_insert_char(ch);
-                    }
+    wchar_t ch = (wchar_t)wParam;
+    
+        // Handle overlay input
+        if (g_app.overlay_active) {
+            if (ch == L'\r' || ch == L'\n') {
+                overlay_confirm();
+            } else if (ch == L'\b') {
+                if (g_app.mode == MODE_PALETTE) {
+                    palette_backspace(&g_app);
+                } else {
+                    overlay_backspace();
+                }
+                InvalidateRect(hwnd, NULL, FALSE);
+            } else if (ch == 27) {  // ESC
+                if (g_app.mode == MODE_PALETTE) {
+                    palette_cancel(&g_app);
+                } else {
+                    g_app.overlay_active = false;
+                    g_app.mode = MODE_EDIT;
                     InvalidateRect(hwnd, NULL, FALSE);
                 }
-                return 0;
+            } else if (ch >= 32) {
+                if (g_app.mode == MODE_PALETTE) {
+                    palette_handle_char(&g_app, ch);
+                } else {
+                    overlay_insert_char(ch);
+                }
+                InvalidateRect(hwnd, NULL, FALSE);
             }
+            return 0;  // <-- THIS RETURN SHOULD BE HERE, NOT AFTER THE CLOSING BRACE
+        }
             
             // Normal editing
             if (ch == 27) {  // ESC
@@ -806,9 +856,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                 InvalidateRect(hwnd, NULL, FALSE);
             }
             return 0;
-        }
-        
-        case WM_KEYDOWN: {
+        }        
+
+            case WM_KEYDOWN: {
             bool ctrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
             bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
             
@@ -885,19 +935,12 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                         return 0;
                 }
             }
-
-            theme_default(&g_app.theme);
-
+            
             // Navigation and editing keys
             switch (wParam) {
                 case VK_F3:  // Find next
                     if (g_app.find.active) {
-                        find_next(&g_app, g_app.find.text,
-                                 g_app.find.case_insensitive,
-                                 g_app.find.wrap_around,
-                                 !shift);
-                        ensure_caret_visible();
-                        InvalidateRect(hwnd, NULL, FALSE);
+                        find_next(&g_app, g_app.find.text, true, true, !shift);
                     }
                     return 0;
                     
@@ -1074,6 +1117,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
                        LPWSTR lpCmdLine, int nCmdShow) {
     (void)hPrevInstance;
     (void)lpCmdLine;
+    (void)nCmdShow;
     
     // Enable DPI awareness
     SetProcessDPIAware();
@@ -1085,16 +1129,23 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
     wc.hCursor = LoadCursor(NULL, IDC_IBEAM);
     wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
     wc.lpszClassName = L"WoflIdeWindow";
-    RegisterClassW(&wc);
-    
+
+    if (!RegisterClassW(&wc)) {
+        MessageBoxW(NULL, L"Failed to register window class", L"WOFL Error", MB_OK);
+        return 1;
+    }
+
     // Create main window
     HWND hwnd = CreateWindowExW(0, wc.lpszClassName, L"WOFL IDE",
                                  WS_OVERLAPPEDWINDOW | WS_VISIBLE,
                                  CW_USEDEFAULT, CW_USEDEFAULT,
                                  1024, 768,
                                  NULL, NULL, hInstance, NULL);
-    
-    if (!hwnd) return 0;
+
+    if (!hwnd) {
+        MessageBoxW(NULL, L"Failed to create window", L"WOFL Error", MB_OK);
+        return 1;
+    }
     
     // Handle command line arguments (open file)
     int argc = 0;
@@ -1105,7 +1156,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
             g_app.buf.eol_mode = eol;
             set_current_file(argv[1]);
             config_set_default_run_cmd(&g_app);
-            config_load_run_cmd(&g_app);
+            config_try_load_run_cmd(&g_app);
             InvalidateRect(hwnd, NULL, TRUE);
         }
     }

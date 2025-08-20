@@ -1,26 +1,41 @@
 // ==================== editor_buffer.c ====================
-// Gap buffer implementation for efficient text editing
+// Gap buffer implementation aligned to editor.h
 
 #include "editor.h"
-#include <stdlib.h>
+#include <windows.h>
 #include <string.h>
 
-/**
- * Initialize a gap buffer with default capacity
- */
-void gb_init(GapBuffer *gb) {
-    gb->capacity = WOFL_INITIAL_GAP;
-    gb->data = (wchar_t*)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, 
-                                    gb->capacity * sizeof(wchar_t));
-    gb->gap_start = 0;
-    gb->gap_end = gb->capacity;
-    gb->eol_mode = EOL_LF;
-    gb->dirty = false;
+static void normalize_newlines(wchar_t *text, size_t *len, EolMode *eol) {
+    size_t r = 0, w = 0;
+    bool has_crlf = false;
+    while (r < *len) {
+        if (text[r] == L'\r') {
+            if (r + 1 < *len && text[r + 1] == L'\n') {
+                text[w++] = L'\n';
+                r += 2;
+                has_crlf = true;
+            } else {
+                text[w++] = L'\n';
+                r += 1;
+            }
+        } else {
+            text[w++] = text[r++];
+        }
+    }
+    *len = w;
+    *eol = has_crlf ? EOL_CRLF : EOL_LF;
 }
 
-/**
- * Free gap buffer resources
- */
+void gb_init(GapBuffer *gb) {
+    gb->capacity  = WOFL_INITIAL_GAP;
+    gb->data      = (wchar_t*)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY,
+                                        gb->capacity * sizeof(wchar_t));
+    gb->gap_start = 0;
+    gb->gap_end   = gb->capacity;
+    gb->eol_mode  = EOL_LF;
+    gb->dirty     = false;
+}
+
 void gb_free(GapBuffer *gb) {
     if (gb->data) {
         HeapFree(GetProcessHeap(), 0, gb->data);
@@ -28,100 +43,97 @@ void gb_free(GapBuffer *gb) {
     }
     gb->capacity = 0;
     gb->gap_start = gb->gap_end = 0;
+    gb->dirty = false;
 }
 
-/**
- * Get the logical length of text (excluding gap)
- */
 size_t gb_length(const GapBuffer *gb) {
-    return gb->capacity - (gb->gap_end - gb->gap_start);
+    const size_t gap = (gb->gap_end > gb->gap_start) ? (gb->gap_end - gb->gap_start) : 0;
+    return gb->capacity - gap;
 }
 
-/**
- * Ensure buffer has enough capacity for additional characters
- */
-void gb_ensure_capacity(GapBuffer *gb, size_t need) {
-    size_t gap_size = gb->gap_end - gb->gap_start;
-    if (gap_size >= need) return;
-    
-    // Calculate new capacity with growth factor
-    size_t new_capacity = max_size(gb->capacity * 2, gb->capacity + need);
-    wchar_t *new_data = (wchar_t*)HeapAlloc(GetProcessHeap(), 0, 
-                                             new_capacity * sizeof(wchar_t));
-    
-    // Copy data before and after gap
-    size_t pre_gap = gb->gap_start;
-    size_t post_gap = gb->capacity - gb->gap_end;
-    
-    if (pre_gap > 0) {
-        memcpy(new_data, gb->data, pre_gap * sizeof(wchar_t));
-    }
-    if (post_gap > 0) {
-        memcpy(new_data + (new_capacity - post_gap), 
-               gb->data + gb->gap_end, post_gap * sizeof(wchar_t));
-    }
-    
+void gb_ensure(GapBuffer *gb, size_t need) {
+    const size_t gap = gb->gap_end - gb->gap_start;
+    if (gap >= need) return;
+
+    const size_t pre  = gb->gap_start;
+    const size_t post = gb->capacity - gb->gap_end;
+
+    size_t new_cap = gb->capacity * 2;
+    const size_t extra = need + 64;
+    if (new_cap < gb->capacity + extra) new_cap = gb->capacity + extra;
+
+    wchar_t *nd = (wchar_t*)HeapAlloc(GetProcessHeap(), 0, new_cap * sizeof(wchar_t));
+    if (!nd) return; // out-of-memory: fail safe (no growth)
+
+    // Copy left of gap
+    if (pre) memcpy(nd, gb->data, pre * sizeof(wchar_t));
+    // Copy right of gap to the end of new buffer
+    if (post) memcpy(nd + (new_cap - post), gb->data + gb->gap_end, post * sizeof(wchar_t));
+
     HeapFree(GetProcessHeap(), 0, gb->data);
-    gb->data = new_data;
-    gb->gap_end = new_capacity - post_gap;
-    gb->capacity = new_capacity;
+    gb->data      = nd;
+    gb->capacity  = new_cap;
+    gb->gap_start = pre;
+    gb->gap_end   = new_cap - post;
 }
 
-/**
- * Move gap to specified position
- */
 void gb_move_gap(GapBuffer *gb, size_t pos) {
+    size_t len = gb_length(gb);
+    if (pos > len) pos = len;
     if (pos == gb->gap_start) return;
-    
-    if (pos < gb->gap_start) {
-        // Move gap left
-        size_t n = gb->gap_start - pos;
-        memmove(gb->data + gb->gap_end - n, gb->data + pos, n * sizeof(wchar_t));
-        gb->gap_start = pos;
-        gb->gap_end -= n;
-    } else {
-        // Move gap right
-        size_t n = pos - gb->gap_start;
-        memmove(gb->data + gb->gap_start, gb->data + gb->gap_end, n * sizeof(wchar_t));
-        gb->gap_start = pos;
-        gb->gap_end += n;
+
+    // Move gap left in chunks
+    while (pos < gb->gap_start) {
+        const size_t delta = gb->gap_start - pos;
+        const size_t chunk = delta; // limited by available pre-gap anyway
+        memmove(gb->data + (gb->gap_end - chunk),
+                gb->data + (gb->gap_start - chunk),
+                chunk * sizeof(wchar_t));
+        gb->gap_start -= chunk;
+        gb->gap_end   -= chunk;
+    }
+
+    // Move gap right in chunks (bounded by post-gap)
+    while (pos > gb->gap_start) {
+        const size_t delta    = pos - gb->gap_start;
+        const size_t post_gap = gb->capacity - gb->gap_end;
+        const size_t chunk    = (delta < post_gap) ? delta : post_gap;
+        if (chunk == 0) break; // nothing to move (shouldn't happen often)
+        memmove(gb->data + gb->gap_start,
+                gb->data + gb->gap_end,
+                chunk * sizeof(wchar_t));
+        gb->gap_start += chunk;
+        gb->gap_end   += chunk;
     }
 }
 
-/**
- * Insert text at current gap position
- */
 void gb_insert(GapBuffer *gb, const wchar_t *s, size_t n) {
-    if (n == 0) return;
-    gb_ensure_capacity(gb, n);
+    if (!s || n == 0) return;
+    gb_ensure(gb, n);
     memcpy(gb->data + gb->gap_start, s, n * sizeof(wchar_t));
     gb->gap_start += n;
     gb->dirty = true;
 }
 
-/**
- * Insert single character
- */
-void gb_insert_char(GapBuffer *gb, wchar_t ch) {
+void gb_insert_ch(GapBuffer *gb, wchar_t ch) {
     gb_insert(gb, &ch, 1);
 }
 
-/**
- * Delete range of characters
- */
 void gb_delete_range(GapBuffer *gb, size_t pos, size_t n) {
-    if (n == 0) return;
+    size_t len = gb_length(gb);
+    if (pos > len || n == 0) return;
+    if (pos + n > len) n = len - pos;
     gb_move_gap(gb, pos);
-    gb->gap_end = min_size(gb->gap_end + n, gb->capacity);
+    // expand gap by n (delete)
+    size_t grow_to = gb->gap_end + n;
+    if (grow_to > gb->capacity) grow_to = gb->capacity;
+    gb->gap_end = grow_to;
     gb->dirty = true;
 }
 
-/**
- * Get character at logical position
- */
 wchar_t gb_char_at(const GapBuffer *gb, size_t pos) {
-    if (pos >= gb_length(gb)) return L'\0';
-    
+    const size_t len = gb_length(gb);
+    if (pos >= len) return L'\0';
     if (pos < gb->gap_start) {
         return gb->data[pos];
     } else {
@@ -129,160 +141,93 @@ wchar_t gb_char_at(const GapBuffer *gb, size_t pos) {
     }
 }
 
-/**
- * Copy text range to output buffer
- */
-void gb_get_text(const GapBuffer *gb, wchar_t *out, size_t start, size_t len) {
-    size_t total_len = gb_length(gb);
-    if (start >= total_len) {
-        out[0] = L'\0';
-        return;
-    }
-    
-    len = min_size(len, total_len - start);
-    
-    for (size_t i = 0; i < len; i++) {
-        out[i] = gb_char_at(gb, start + i);
-    }
-    out[len] = L'\0';
-}
+bool gb_load_from_file(GapBuffer *gb, const wchar_t *path, EolMode *eol) {
+    HANDLE f = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ, NULL,
+                           OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (f == INVALID_HANDLE_VALUE) return false;
 
-/**
- * Normalize line endings in-place
- */
-static void normalize_newlines(wchar_t *text, size_t *len, EolMode *eol) {
-    size_t read = 0, write = 0;
-    bool has_crlf = false;
-    
-    while (read < *len) {
-        if (text[read] == L'\r') {
-            if (read + 1 < *len && text[read + 1] == L'\n') {
-                text[write++] = L'\n';
-                read += 2;
-                has_crlf = true;
-            } else {
-                text[write++] = L'\n';
-                read++;
-            }
-        } else {
-            text[write++] = text[read++];
-        }
-    }
-    
-    *len = write;
-    *eol = has_crlf ? EOL_CRLF : EOL_LF;
-}
+    LARGE_INTEGER sz;
+    if (!GetFileSizeEx(f, &sz)) { CloseHandle(f); return false; }
 
-/**
- * Load file into gap buffer
- */
- bool gb_load_from_file(GapBuffer *gb, const wchar_t *path, EolMode *eol) {
-     gb_load_from_utf8_file(gb, path, eol);
-     return true;  // Adjust based on actual implementation
-    
-    HANDLE file = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ, NULL,
-                              OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-    if (file == INVALID_HANDLE_VALUE) return false;
-    
-    LARGE_INTEGER size;
-    GetFileSizeEx(file, &size);
-    
-    if (size.QuadPart == 0) {
-        CloseHandle(file);
-        *eol = EOL_LF;
+    if (sz.QuadPart == 0) {
+        CloseHandle(f);
+        if (eol) *eol = EOL_LF;
+        gb->eol_mode = EOL_LF;
+        gb->dirty = false;
         return true;
     }
-    
-    // Read file as UTF-8
-    char *utf8_buf = (char*)HeapAlloc(GetProcessHeap(), 0, (size_t)size.QuadPart + 1);
-    DWORD bytes_read = 0;
-    ReadFile(file, utf8_buf, (DWORD)size.QuadPart, &bytes_read, NULL);
-    CloseHandle(file);
-    utf8_buf[bytes_read] = '\0';
-    
-    // Convert UTF-8 to wide char
-    int wide_len = MultiByteToWideChar(CP_UTF8, 0, utf8_buf, bytes_read, NULL, 0);
-    wchar_t *wide_buf = (wchar_t*)HeapAlloc(GetProcessHeap(), 0, 
-                                             (wide_len + 1) * sizeof(wchar_t));
-    MultiByteToWideChar(CP_UTF8, 0, utf8_buf, bytes_read, wide_buf, wide_len);
-    wide_buf[wide_len] = L'\0';
-    HeapFree(GetProcessHeap(), 0, utf8_buf);
-    
-    // Normalize newlines
-    size_t final_len = wide_len;
-    normalize_newlines(wide_buf, &final_len, eol);
-    
-    // Insert into buffer
-    gb_ensure_capacity(gb, final_len);
-    memcpy(gb->data, wide_buf, final_len * sizeof(wchar_t));
+
+    char *utf8 = (char*)HeapAlloc(GetProcessHeap(), 0, (size_t)sz.QuadPart + 1);
+    if (!utf8) { CloseHandle(f); return false; }
+    DWORD rd = 0;
+    if (!ReadFile(f, utf8, (DWORD)sz.QuadPart, &rd, NULL)) {
+        HeapFree(GetProcessHeap(), 0, utf8);
+        CloseHandle(f);
+        return false;
+    }
+    CloseHandle(f);
+    utf8[rd] = '\0';
+
+    int wlen = MultiByteToWideChar(CP_UTF8, 0, utf8, rd, NULL, 0);
+    wchar_t *wbuf = (wchar_t*)HeapAlloc(GetProcessHeap(), 0, (wlen + 1) * sizeof(wchar_t));
+    if (!wbuf) { HeapFree(GetProcessHeap(), 0, utf8); return false; }
+    MultiByteToWideChar(CP_UTF8, 0, utf8, rd, wbuf, wlen);
+    wbuf[wlen] = L'\0';
+    HeapFree(GetProcessHeap(), 0, utf8);
+
+    size_t final_len = (size_t)wlen;
+    EolMode mode = EOL_LF;
+    normalize_newlines(wbuf, &final_len, &mode);
+
+    // Prepare gap: put all text before the gap
+    gb_ensure(gb, final_len);
+    memcpy(gb->data, wbuf, final_len * sizeof(wchar_t));
     gb->gap_start = final_len;
-    gb->eol_mode = *eol;
-    gb->dirty = false;
-    
-    HeapFree(GetProcessHeap(), 0, wide_buf);
+    gb->gap_end   = gb->capacity;
+    gb->eol_mode  = mode;
+    gb->dirty     = false;
+
+    if (eol) *eol = mode;
+    HeapFree(GetProcessHeap(), 0, wbuf);
     return true;
 }
 
-/**
- * Save gap buffer to file
- */
 bool gb_save_to_file(GapBuffer *gb, const wchar_t *path, EolMode eol) {
-    return gb_save_to_utf8_file(gb, path, eol);
-   
-    // Flatten buffer
-    wchar_t *flat = (wchar_t*)HeapAlloc(GetProcessHeap(), 0, 
-                                         (len + 1) * sizeof(wchar_t));
-    gb_get_text(gb, flat, 0, len);
-    
-    // Convert newlines if needed
-    if (eol == EOL_CRLF) {
-        // Count newlines
-        size_t newline_count = 0;
-        for (size_t i = 0; i < len; i++) {
-            if (flat[i] == L'\n') newline_count++;
-        }
-        
-        // Allocate buffer with space for CRLF
-        wchar_t *crlf_buf = (wchar_t*)HeapAlloc(GetProcessHeap(), 0,
-                                                 (len + newline_count + 1) * sizeof(wchar_t));
-        size_t write_pos = 0;
-        for (size_t i = 0; i < len; i++) {
-            if (flat[i] == L'\n') {
-                crlf_buf[write_pos++] = L'\r';
-                crlf_buf[write_pos++] = L'\n';
-            } else {
-                crlf_buf[write_pos++] = flat[i];
-            }
-        }
-        crlf_buf[write_pos] = L'\0';
-        
-        HeapFree(GetProcessHeap(), 0, flat);
-        flat = crlf_buf;
-        len = write_pos;
+    HANDLE f = CreateFileW(path, GENERIC_WRITE, 0, NULL,
+                           CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (f == INVALID_HANDLE_VALUE) return false;
+
+    const size_t len = gb_length(gb);
+    if (len == 0) {
+        CloseHandle(f);
+        gb->dirty = false;
+        return true;
     }
-    
-    // Convert to UTF-8
-    int utf8_len = WideCharToMultiByte(CP_UTF8, 0, flat, (int)len, 
-                                        NULL, 0, NULL, NULL);
-    char *utf8_buf = (char*)HeapAlloc(GetProcessHeap(), 0, utf8_len);
-    WideCharToMultiByte(CP_UTF8, 0, flat, (int)len, utf8_buf, utf8_len, NULL, NULL);
-    
-    // Write to file
-    HANDLE file = CreateFileW(path, GENERIC_WRITE, 0, NULL,
-                              CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-    if (file == INVALID_HANDLE_VALUE) {
-        HeapFree(GetProcessHeap(), 0, utf8_buf);
-        HeapFree(GetProcessHeap(), 0, flat);
-        return false;
+
+    // Allocate worst-case (CRLF doubles LF; UTF-8 up to 3 bytes for BMP codepoints)
+    size_t out_cap = len * 2 * 3;
+    char *out = (char*)HeapAlloc(GetProcessHeap(), 0, out_cap);
+    if (!out) { CloseHandle(f); return false; }
+
+    int pos = 0;
+    for (size_t i = 0; i < len; i++) {
+        wchar_t ch = gb_char_at(gb, i);
+        if (ch == L'\n' && eol == EOL_CRLF) {
+            out[pos++] = '\r';
+            out[pos++] = '\n';
+        } else {
+            char tmp[4];
+            const int n = WideCharToMultiByte(CP_UTF8, 0, &ch, 1, tmp, 4, NULL, NULL);
+            for (int j = 0; j < n; j++) out[pos++] = tmp[j];
+        }
     }
-    
-    DWORD bytes_written = 0;
-    WriteFile(file, utf8_buf, utf8_len, &bytes_written, NULL);
-    CloseHandle(file);
-    
-    HeapFree(GetProcessHeap(), 0, utf8_buf);
-    HeapFree(GetProcessHeap(), 0, flat);
-    
+
+    DWORD wr = 0;
+    const BOOL ok = WriteFile(f, out, (DWORD)pos, &wr, NULL);
+    HeapFree(GetProcessHeap(), 0, out);
+    CloseHandle(f);
+    if (!ok) return false;
+
     gb->dirty = false;
     return true;
 }

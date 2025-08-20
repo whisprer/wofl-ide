@@ -49,7 +49,7 @@ static bool parse_config_line(const wchar_t *line, wchar_t *key, wchar_t *value)
 /**
  * Load run command from build configuration
  */
-bool config_load_run_cmd(AppState *app) {
+bool config_try_load_run_cmd(AppState *app) {
     if (!app->file_dir[0]) return false;
     
     // Look for build.wofl in project directory
@@ -160,25 +160,4 @@ void config_set_default_run_cmd(AppState *app) {
             swprintf_s(app->run_cmd, WOFL_CMD_MAX, L"\"%ls\"", app->file_path);
             break;
     }
-}
-
-/**
- * Load editor settings
- */
-bool config_load_settings(AppState *app, const wchar_t *path) {
-    // TODO: Implement loading of editor preferences
-    // For now, use defaults
-    return false;
-}
-
-/**
- * Save editor settings
- */
-bool config_save_settings(AppState *app, const wchar_t *path) {
-    // TODO: Implement saving of editor preferences
-    return false;
-}
-
-bool config_load_run_cmd(AppState *app) {
-    return config_try_load_run_cmd(app);
 }

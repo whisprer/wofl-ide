@@ -94,7 +94,7 @@ bool find_next(AppState *app, const wchar_t *needle, bool case_ins, bool wrap, b
 }
 
 /**
- * Find previous occurrence
+ * Replace current selection with replacement text
  */
 bool find_previous(AppState *app, const wchar_t *needle, bool case_ins, bool wrap) {
     return find_next(app, needle, case_ins, wrap, false);
@@ -103,13 +103,17 @@ bool find_previous(AppState *app, const wchar_t *needle, bool case_ins, bool wra
 /**
  * Replace current selection with replacement text
  */
-void find_replace(AppState *app, const wchar_t *needle, const wchar_t *replacement) {
-    size_t start = editor_linecol_to_index(&app->buf, app->caret.line, app->caret.col);
+bool find_replace(AppState *app, const wchar_t *needle, const wchar_t *replacement, bool case_ins) {
+    if (!needle || !needle[0]) return false;
     
-    if (match_at_position(&app->buf, start, needle, app->find.case_insensitive)) {
+    size_t start = editor_linecol_to_index(&app->buf, app->caret.line, app->caret.col);
+    size_t len = gb_length(&app->buf); // Use len to silence C4189
+    
+    // Check if current position matches needle (using len for safety)
+    if (start + wcslen(needle) > len) return false;
+    if (match_at_position(&app->buf, start, needle, case_ins)) {
+        // Delete matched text
         size_t needle_len = wcslen(needle);
-        
-        // Delete the needle
         gb_delete_range(&app->buf, start, needle_len);
         
         // Insert replacement
@@ -119,7 +123,10 @@ void find_replace(AppState *app, const wchar_t *needle, const wchar_t *replaceme
         // Update caret position
         editor_index_to_linecol(&app->buf, start + wcslen(replacement), 
                                &app->caret.line, &app->caret.col);
-        
-        app->need_recount = true;
+        app->selecting = false;
+        app->buf.dirty = true;
+        return true;
     }
+    
+    return false;
 }

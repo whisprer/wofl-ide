@@ -4,6 +4,7 @@
 #include "editor.h"
 #include <time.h>
 #include <direct.h>
+#include <stdio.h>
 
 typedef struct {
     bool enabled;

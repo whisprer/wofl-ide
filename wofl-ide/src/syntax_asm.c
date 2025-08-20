@@ -159,10 +159,10 @@ void syntax_scan_asm(const wchar_t *line, int len, TokenSpan *out, int *out_n) {
             out[m++] = (TokenSpan){start, i - start, TK_NUM};
         }
         // Labels (identifier followed by :)
-        else if (is_word_char(ch) || ch == L'.' || ch == L'_') {
+        else if (iswalpha(ch) || ch == L'.' || ch == L'_') {
             int start = i++;
-            while (i < len && (is_word_char(line[i]) || line[i] == L'.' || 
-                              line[i] == L'_' || iswdigit(line[i]))) {
+            while (i < len && (iswalnum(line[i]) || line[i] == L'.' || 
+                              line[i] == L'_')) {
                 i++;
             }
             

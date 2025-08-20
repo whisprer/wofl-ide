@@ -14,7 +14,7 @@ void syntax_scan_csv(const wchar_t *line, int len, TokenSpan *out, int *out_n) {
         // Quoted field
         if (ch == L'"') {
             int start = i++;
-            bool escaped = false;
+//            bool escaped = false;
             
             while (i < len) {
                 if (line[i] == L'"') {

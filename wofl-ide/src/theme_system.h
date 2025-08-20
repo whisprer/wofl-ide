@@ -56,7 +56,6 @@ void theme_load_dark(ThemeConfig *theme);
 void theme_load_light(ThemeConfig *theme);
 void theme_load_monokai(ThemeConfig *theme);
 void theme_load_dracula(ThemeConfig *theme);
-void theme_load_from_file(&theme, L"C:\Users\phine\AppData\Roaming\woflIDE\themes\wofls-light-nexus.theme");
 
 // void theme_load_solarized_dark(ThemeConfig *theme);
 // void theme_load_solarized_light(ThemeConfig *theme);

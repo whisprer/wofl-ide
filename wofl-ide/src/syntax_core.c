@@ -12,6 +12,7 @@ extern void syntax_scan_js(const wchar_t*, int, TokenSpan*, int*);
 
 // Plain text scanner
 static void syntax_scan_plain(const wchar_t *line, int len, TokenSpan *out, int *out_n) {
+(void)line;
     out[0] = (TokenSpan){0, len, TK_TEXT};
     *out_n = 1;
 }

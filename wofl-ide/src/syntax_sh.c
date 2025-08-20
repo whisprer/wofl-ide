@@ -53,7 +53,7 @@ void syntax_scan_shell(const wchar_t *line, int len, TokenSpan *out, int *out_n)
                 }
             } else if (i < len && (iswalpha(line[i]) || line[i] == L'_')) {
                 // $VAR format
-                while (i < len && (is_word_char(line[i]) || iswdigit(line[i]))) {
+                while (i < len && (is_word(line[i]) || iswdigit(line[i]))) {
                     i++;
                 }
             }
@@ -69,9 +69,9 @@ void syntax_scan_shell(const wchar_t *line, int len, TokenSpan *out, int *out_n)
             out[m++] = (TokenSpan){start, i - start, TK_NUM};
         }
         // Keywords and identifiers
-        else if (is_word_char(ch)) {
+        else if (is_word(ch)) {
             int start = i++;
-            while (i < len && is_word_char(line[i])) {
+            while (i < len && is_word(line[i])) {
                 i++;
             }
             
