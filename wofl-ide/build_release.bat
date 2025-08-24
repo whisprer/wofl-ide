@@ -1,18 +1,18 @@
 @echo off
 setlocal ENABLEDELAYEDEXPANSION
-REM ---- WOFL IDE: DEBUG BUILD (MSVC) ----
+REM ---- WOFL IDE: RELEASE BUILD (MSVC) ----
 
 set "SRC=src"
-set "OBJ=build_debug"
+set "OBJ=build_release"
 set "OUT=dist"
-set "EXE=%OUT%\wofl-ide-debug.exe"
-set "PDB=%OUT%\wofl-ide-debug.pdb"
+set "EXE=%OUT%\wofl-ide.exe"
+set "PDB=%OUT%\wofl-ide.pdb"
 
 if not exist "%OBJ%" mkdir "%OBJ%"
 if not exist "%OUT%" mkdir "%OUT%"
 
 echo ========================================
-echo Building WOFL IDE (Debug Mode)
+echo Building WOFL IDE (Release Mode)
 echo ========================================
 
 where cl >nul 2>&1 || (
@@ -20,25 +20,25 @@ where cl >nul 2>&1 || (
   exit /b 1
 )
 
-echo Compiling (Debug)...
-cl /nologo /Zi /Od /utf-8 /W4 /WX /DDEBUG /I include /Fo "%OBJ%\" /c "%SRC%\*.c"
+echo Compiling (Release)...
+cl /nologo /O2 /GL /utf-8 /W4 /I include /DNDEBUG /Fo "%OBJ%\" /c "%SRC%\*.c"
 if errorlevel 1 (
   echo.
   echo ========================================
-  echo DEBUG BUILD FAILED (compile stage)
+  echo RELEASE BUILD FAILED (compile stage)
   echo ========================================
   exit /b 1
 )
 
 echo Linking...
-link /nologo /SUBSYSTEM:WINDOWS /DEBUG "%OBJ%\*.obj" user32.lib gdi32.lib comdlg32.lib shell32.lib ^
+link /nologo /SUBSYSTEM:WINDOWS /LTCG "%OBJ%\*.obj" user32.lib gdi32.lib comdlg32.lib shell32.lib ^
   /OUT:"%EXE%" /PDB:"%PDB%"
 set "RC=%ERRORLEVEL%"
 
 if not "%RC%"=="0" (
   echo.
   echo ========================================
-  echo DEBUG BUILD FAILED (link stage)
+  echo RELEASE BUILD FAILED (link stage)
   echo ========================================
   exit /b %RC%
 )
@@ -46,18 +46,16 @@ if not "%RC%"=="0" (
 if not exist "%EXE%" (
   echo.
   echo ========================================
-  echo DEBUG BUILD FAILED (no output produced)
+  echo RELEASE BUILD FAILED (no output produced)
   echo ========================================
   exit /b 1
 )
 
 echo.
 echo ========================================
-echo DEBUG BUILD SUCCESSFUL
+echo RELEASE BUILD SUCCESSFUL
 echo ========================================
 echo Output: %EXE%
 echo PDB:    %PDB%
-echo Run:    "%EXE%"
-echo Debug:  windbgx.exe -o "%EXE%"
 echo ========================================
 exit /b 0

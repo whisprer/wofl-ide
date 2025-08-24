@@ -167,6 +167,11 @@ static void save_file(void) {
  * Ensure caret is visible in viewport
  */
 static void ensure_caret_visible(void) {
+    // Safety check - if metrics not initialized, bail out
+    if (g_app.theme.line_h == 0 || g_app.theme.ch_w == 0) {
+        return;
+    }
+
     // Vertical scrolling
     if (g_app.caret.line < g_app.top_line) {
         g_app.top_line = g_app.caret.line;
@@ -717,7 +722,28 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             if (!g_app.theme.hFont) {
                 editor_layout_metrics(&g_app, hdc);
             }
-            
+
+            // Force initialize if editor_layout_metrics failed
+            if (g_app.theme.line_h == 0) {
+                g_app.theme.line_h = 16;
+            }
+            if (g_app.theme.ch_w == 0) {
+                g_app.theme.ch_w = 8;
+            }
+            if (g_app.theme.hFont == NULL) {
+                LOGFONTW lf = {0};
+                lf.lfHeight = -14;
+                lf.lfWeight = FW_NORMAL;
+                lf.lfCharSet = DEFAULT_CHARSET;
+                lf.lfQuality = CLEARTYPE_QUALITY;
+                wcscpy_s(lf.lfFaceName, 32, L"Consolas");
+                g_app.theme.hFont = CreateFontIndirectW(&lf);
+            }
+
+            // Fallback if metrics failed to initialize
+            if (g_app.theme.line_h == 0) g_app.theme.line_h = 16;
+            if (g_app.theme.ch_w == 0) g_app.theme.ch_w = 8;
+
             if (g_app.need_recount) {
                 editor_recount_lines(&g_app);
             }
@@ -768,6 +794,14 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
         }
         
         case WM_MOUSEMOVE: {
+            case WM_MOUSEMOVE: {
+    if (GetCapture() == hwnd) {
+        // Add these safety checks here too
+        if (g_app.theme.line_h == 0) g_app.theme.line_h = 16;
+        if (g_app.theme.ch_w == 0) g_app.theme.ch_w = 8;
+        
+        int x = GET_X_LPARAM(lParam);
+        // ... rest of the code
             if (GetCapture() == hwnd) {
                 int x = GET_X_LPARAM(lParam);
                 int y = GET_Y_LPARAM(lParam);
@@ -858,36 +892,31 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             return 0;
         }        
 
-            case WM_KEYDOWN: {
-            bool ctrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
-            bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
-            
-            // Handle overlay navigation
-            if (g_app.overlay_active) {
-                switch (wParam) {
-                    case VK_LEFT:
-                        if (g_app.overlay_cursor > 0) {
-                            g_app.overlay_cursor--;
-                            InvalidateRect(hwnd, NULL, FALSE);
-                        }
-                        return 0;
-                    case VK_RIGHT:
-                        if (g_app.overlay_cursor < g_app.overlay_len) {
-                            g_app.overlay_cursor++;
-                            InvalidateRect(hwnd, NULL, FALSE);
-                        }
-                        return 0;
-                    case VK_HOME:
-                        g_app.overlay_cursor = 0;
-                        InvalidateRect(hwnd, NULL, FALSE);
-                        return 0;
-                    case VK_END:
-                        g_app.overlay_cursor = g_app.overlay_len;
-                        InvalidateRect(hwnd, NULL, FALSE);
-                        return 0;
-                }
+        case WM_MOUSEMOVE: {
+            if (GetCapture() == hwnd) {
+                // Safety checks
+                if (g_app.theme.line_h == 0) g_app.theme.line_h = 16;
+                if (g_app.theme.ch_w == 0) g_app.theme.ch_w = 8;
+                
+                int x = GET_X_LPARAM(lParam);
+                int y = GET_Y_LPARAM(lParam);
+                
+                int line = g_app.top_line + y / g_app.theme.line_h;
+                int col = g_app.left_col + (x - 4) / g_app.theme.ch_w;
+                
+                // Clamp to valid range
+                line = max_int(0, min_int(line, editor_total_lines(&g_app) - 1));
+                col = max_int(0, min_int(col, get_line_length(line)));
+                
+                g_app.caret.line = line;
+                g_app.caret.col = col;
+                g_app.selecting = true;
+                
+                ensure_caret_visible();
+                InvalidateRect(hwnd, NULL, FALSE);
             }
-            
+            return 0;
+        }            
             // Global shortcuts
             if (ctrl) {
                 switch (wParam) {

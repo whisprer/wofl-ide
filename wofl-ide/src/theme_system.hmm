@@ -1,0 +1,15 @@
+// ==================== theme_system.c ====================
+// This unit intentionally does NOT define theme_default.
+// Your project already implements theme_default() in editor_render.c.
+// Keeping this file as a stub avoids duplicate symbol LNK2005 errors.
+
+#include "editor.h"
+#include <windows.h>
+
+// If you ever want to move theme_default() out of editor_render.c,
+// delete that old definition and put the new one here instead.
+// For now, no exported symbols on purpose.
+
+static void _wofl_theme_stub_noop(void) {
+    // prevents empty-translation-unit warnings on some toolchains
+}
