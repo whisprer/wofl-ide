@@ -662,6 +662,23 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             HDC hdc = GetDC(hwnd);
             editor_layout_metrics(&g_app, hdc);
             ReleaseDC(hwnd, hdc);
+            
+            // Force initialize if editor_layout_metrics failed
+            if (g_app.theme.line_h == 0) {
+                g_app.theme.line_h = 16;
+            }
+            if (g_app.theme.ch_w == 0) {
+                g_app.theme.ch_w = 8;
+            }
+            if (g_app.theme.hFont == NULL) {
+                LOGFONTW lf = {0};
+                lf.lfHeight = -14;
+                lf.lfWeight = FW_NORMAL;
+                lf.lfCharSet = DEFAULT_CHARSET;
+                lf.lfQuality = CLEARTYPE_QUALITY;
+                wcscpy_s(lf.lfFaceName, 32, L"Consolas");
+                g_app.theme.hFont = CreateFontIndirectW(&lf);
+            }
 
             // Initialize buffer
             gb_init(&g_app.buf);
@@ -723,23 +740,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                 editor_layout_metrics(&g_app, hdc);
             }
 
-            // Force initialize if editor_layout_metrics failed
-            if (g_app.theme.line_h == 0) {
-                g_app.theme.line_h = 16;
-            }
-            if (g_app.theme.ch_w == 0) {
-                g_app.theme.ch_w = 8;
-            }
-            if (g_app.theme.hFont == NULL) {
-                LOGFONTW lf = {0};
-                lf.lfHeight = -14;
-                lf.lfWeight = FW_NORMAL;
-                lf.lfCharSet = DEFAULT_CHARSET;
-                lf.lfQuality = CLEARTYPE_QUALITY;
-                wcscpy_s(lf.lfFaceName, 32, L"Consolas");
-                g_app.theme.hFont = CreateFontIndirectW(&lf);
-            }
-
             // Fallback if metrics failed to initialize
             if (g_app.theme.line_h == 0) g_app.theme.line_h = 16;
             if (g_app.theme.ch_w == 0) g_app.theme.ch_w = 8;
@@ -754,6 +754,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
         }
         
         case WM_MOUSEWHEEL: {
+            // Safety checks
+            if (g_app.theme.line_h == 0) g_app.theme.line_h = 16;
+            
             int delta = GET_WHEEL_DELTA_WPARAM(wParam);
             int lines = (delta / WHEEL_DELTA) * 3;
             
@@ -767,6 +770,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
         }
         
         case WM_LBUTTONDOWN: {
+            // Safety checks
+            if (g_app.theme.line_h == 0) g_app.theme.line_h = 16;
+            if (g_app.theme.ch_w == 0) g_app.theme.ch_w = 8;
+            
             SetCapture(hwnd);
             
             int x = GET_X_LPARAM(lParam);
@@ -794,15 +801,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
         }
         
         case WM_MOUSEMOVE: {
-            case WM_MOUSEMOVE: {
-    if (GetCapture() == hwnd) {
-        // Add these safety checks here too
-        if (g_app.theme.line_h == 0) g_app.theme.line_h = 16;
-        if (g_app.theme.ch_w == 0) g_app.theme.ch_w = 8;
-        
-        int x = GET_X_LPARAM(lParam);
-        // ... rest of the code
             if (GetCapture() == hwnd) {
+                // Safety checks
+                if (g_app.theme.line_h == 0) g_app.theme.line_h = 16;
+                if (g_app.theme.ch_w == 0) g_app.theme.ch_w = 8;
+                
                 int x = GET_X_LPARAM(lParam);
                 int y = GET_Y_LPARAM(lParam);
                 
@@ -830,37 +833,37 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             return 0;
         
         case WM_CHAR: {
-    wchar_t ch = (wchar_t)wParam;
-    
-        // Handle overlay input
-        if (g_app.overlay_active) {
-            if (ch == L'\r' || ch == L'\n') {
-                overlay_confirm();
-            } else if (ch == L'\b') {
-                if (g_app.mode == MODE_PALETTE) {
-                    palette_backspace(&g_app);
-                } else {
-                    overlay_backspace();
-                }
-                InvalidateRect(hwnd, NULL, FALSE);
-            } else if (ch == 27) {  // ESC
-                if (g_app.mode == MODE_PALETTE) {
-                    palette_cancel(&g_app);
-                } else {
-                    g_app.overlay_active = false;
-                    g_app.mode = MODE_EDIT;
+            wchar_t ch = (wchar_t)wParam;
+            
+            // Handle overlay input
+            if (g_app.overlay_active) {
+                if (ch == L'\r' || ch == L'\n') {
+                    overlay_confirm();
+                } else if (ch == L'\b') {
+                    if (g_app.mode == MODE_PALETTE) {
+                        palette_backspace(&g_app);
+                    } else {
+                        overlay_backspace();
+                    }
+                    InvalidateRect(hwnd, NULL, FALSE);
+                } else if (ch == 27) {  // ESC
+                    if (g_app.mode == MODE_PALETTE) {
+                        palette_cancel(&g_app);
+                    } else {
+                        g_app.overlay_active = false;
+                        g_app.mode = MODE_EDIT;
+                        InvalidateRect(hwnd, NULL, FALSE);
+                    }
+                } else if (ch >= 32) {
+                    if (g_app.mode == MODE_PALETTE) {
+                        palette_handle_char(&g_app, ch);
+                    } else {
+                        overlay_insert_char(ch);
+                    }
                     InvalidateRect(hwnd, NULL, FALSE);
                 }
-            } else if (ch >= 32) {
-                if (g_app.mode == MODE_PALETTE) {
-                    palette_handle_char(&g_app, ch);
-                } else {
-                    overlay_insert_char(ch);
-                }
-                InvalidateRect(hwnd, NULL, FALSE);
+                return 0;
             }
-            return 0;  // <-- THIS RETURN SHOULD BE HERE, NOT AFTER THE CLOSING BRACE
-        }
             
             // Normal editing
             if (ch == 27) {  // ESC
@@ -890,33 +893,42 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                 InvalidateRect(hwnd, NULL, FALSE);
             }
             return 0;
-        }        
-
-        case WM_MOUSEMOVE: {
-            if (GetCapture() == hwnd) {
-                // Safety checks
-                if (g_app.theme.line_h == 0) g_app.theme.line_h = 16;
-                if (g_app.theme.ch_w == 0) g_app.theme.ch_w = 8;
-                
-                int x = GET_X_LPARAM(lParam);
-                int y = GET_Y_LPARAM(lParam);
-                
-                int line = g_app.top_line + y / g_app.theme.line_h;
-                int col = g_app.left_col + (x - 4) / g_app.theme.ch_w;
-                
-                // Clamp to valid range
-                line = max_int(0, min_int(line, editor_total_lines(&g_app) - 1));
-                col = max_int(0, min_int(col, get_line_length(line)));
-                
-                g_app.caret.line = line;
-                g_app.caret.col = col;
-                g_app.selecting = true;
-                
-                ensure_caret_visible();
-                InvalidateRect(hwnd, NULL, FALSE);
+        }
+        
+        case WM_KEYDOWN: {
+            // Safety checks at the start of keyboard handling
+            if (g_app.theme.line_h == 0) g_app.theme.line_h = 16;
+            if (g_app.theme.ch_w == 0) g_app.theme.ch_w = 8;
+            
+            bool ctrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
+            bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
+            
+            // Handle overlay navigation
+            if (g_app.overlay_active) {
+                switch (wParam) {
+                    case VK_LEFT:
+                        if (g_app.overlay_cursor > 0) {
+                            g_app.overlay_cursor--;
+                            InvalidateRect(hwnd, NULL, FALSE);
+                        }
+                        return 0;
+                    case VK_RIGHT:
+                        if (g_app.overlay_cursor < g_app.overlay_len) {
+                            g_app.overlay_cursor++;
+                            InvalidateRect(hwnd, NULL, FALSE);
+                        }
+                        return 0;
+                    case VK_HOME:
+                        g_app.overlay_cursor = 0;
+                        InvalidateRect(hwnd, NULL, FALSE);
+                        return 0;
+                    case VK_END:
+                        g_app.overlay_cursor = g_app.overlay_len;
+                        InvalidateRect(hwnd, NULL, FALSE);
+                        return 0;
+                }
             }
-            return 0;
-        }            
+            
             // Global shortcuts
             if (ctrl) {
                 switch (wParam) {
@@ -1039,6 +1051,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     return 0;
                     
                 case VK_PRIOR:  // Page up
+                    // Safety check for division
+                    if (g_app.theme.line_h == 0) g_app.theme.line_h = 16;
+                    
                     g_app.caret.line -= (g_app.client_rc.bottom - g_app.theme.line_h - 2) / 
                                        g_app.theme.line_h;
                     if (g_app.caret.line < 0) {
@@ -1055,6 +1070,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     return 0;
                     
                 case VK_NEXT:  // Page down
+                    // Safety check for division
+                    if (g_app.theme.line_h == 0) g_app.theme.line_h = 16;
+                    
                     g_app.caret.line += (g_app.client_rc.bottom - g_app.theme.line_h - 2) / 
                                        g_app.theme.line_h;
                     {

@@ -1,15 +1,14 @@
 @echo off
-setlocal ENABLEDELAYEDEXPANSION
 REM ---- WOFL IDE: DEBUG BUILD (MSVC) ----
 
-set "SRC=src"
-set "OBJ=build_debug"
-set "OUT=dist"
-set "EXE=%OUT%\wofl-ide-debug.exe"
-set "PDB=%OUT%\wofl-ide-debug.pdb"
+set SRC=src
+set OBJ=build_debug
+set OUT=dist
+set EXE=%OUT%\wofl-ide-debug.exe
+set PDB=%OUT%\wofl-ide-debug.pdb
 
-if not exist "%OBJ%" mkdir "%OBJ%"
-if not exist "%OUT%" mkdir "%OUT%"
+if not exist %OBJ% mkdir %OBJ%
+if not exist %OUT% mkdir %OUT%
 
 echo ========================================
 echo Building WOFL IDE (Debug Mode)
@@ -21,37 +20,27 @@ where cl >nul 2>&1 || (
 )
 
 echo Compiling (Debug)...
-cl /nologo /Zi /Od /utf-8 /W4 /WX /DDEBUG /I include /Fo "%OBJ%\" /c "%SRC%\*.c"
-if errorlevel 1 (
-  echo.
-  echo ========================================
-  echo DEBUG BUILD FAILED (compile stage)
-  echo ========================================
-  exit /b 1
-)
+pushd %OBJ%
+cl /nologo /Zi /Od /utf-8 /W4 /WX /DDEBUG /I ..\include /c ..\%SRC%\*.c
+popd
 
 echo Linking...
-link /nologo /SUBSYSTEM:WINDOWS /DEBUG "%OBJ%\*.obj" user32.lib gdi32.lib comdlg32.lib shell32.lib ^
-  /OUT:"%EXE%" /PDB:"%PDB%"
-set "RC=%ERRORLEVEL%"
+link /nologo /SUBSYSTEM:WINDOWS /DEBUG /MACHINE:X86 %OBJ%\*.obj user32.lib gdi32.lib comdlg32.lib shell32.lib /OUT:%EXE% /PDB:%PDB%
 
-if not "%RC%"=="0" (
-  echo.
+if not %ERRORLEVEL%==0 (
   echo ========================================
   echo DEBUG BUILD FAILED (link stage)
   echo ========================================
-  exit /b %RC%
+  exit /b %ERRORLEVEL%
 )
 
-if not exist "%EXE%" (
-  echo.
+if not exist %EXE% (
   echo ========================================
   echo DEBUG BUILD FAILED (no output produced)
   echo ========================================
   exit /b 1
 )
 
-echo.
 echo ========================================
 echo DEBUG BUILD SUCCESSFUL
 echo ========================================
@@ -60,4 +49,3 @@ echo PDB:    %PDB%
 echo Run:    "%EXE%"
 echo Debug:  windbgx.exe -o "%EXE%"
 echo ========================================
-exit /b 0
