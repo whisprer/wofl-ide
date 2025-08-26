@@ -33,6 +33,7 @@ void theme_default(Theme *th) {
     th->col_fg = RGB(220, 220, 220);
     th->col_sel_bg = RGB(50, 80, 120);
     th->col_status_bg = RGB(32, 36, 40);
+    th->col_output_fg = RGB(200, 200, 200);
     th->col_output_bg = RGB(10, 10, 10);
     
     // Syntax highlighting colors
@@ -222,7 +223,7 @@ static int paint_output_pane(AppState *app, HDC hdc, int client_height) {
             line_buf[k++] = ch;
         }
         
-        draw_text_ex(hdc, x, y, line_buf, k, RGB(200, 200, 200));
+        draw_text_ex(hdc, x, y, line_buf, k, app->theme.col_output_fg);
         y += app->theme.line_h;
     }
     

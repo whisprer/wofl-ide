@@ -79,17 +79,22 @@ bool run_spawn(AppState *app, const wchar_t *cmdline) {
     const wchar_t *working_dir = app->file_dir[0] ? app->file_dir : NULL;
     
     // Create process
+    MessageBoxW(app->hwnd, cmd_copy, L"About to run:", MB_OK);
+
     BOOL success = CreateProcessW(NULL, cmd_copy, NULL, NULL, TRUE,
-                                   CREATE_NO_WINDOW, NULL, working_dir,
-                                   &si, &pi);
-    
+                               CREATE_NO_WINDOW, NULL, working_dir,
+                               &si, &pi);
+
     CloseHandle(write_pipe);
-    
+
     if (!success) {
+        wchar_t error_msg[256];
+        swprintf(error_msg, 256, L"CreateProcess failed. Error: %d", GetLastError());
+        MessageBoxW(app->hwnd, error_msg, L"Error", MB_OK);
         CloseHandle(read_pipe);
         return false;
-    }
-    
+    }  // <-- This closing brace was missing
+
     // Initialize output pane
     app->out.pipe_rd = read_pipe;
     app->out.proc_handle = pi.hProcess;
@@ -103,14 +108,18 @@ bool run_spawn(AppState *app, const wchar_t *cmdline) {
         gb_init(&app->out.buf);
     }
     
-    InitializeCriticalSection(&app->out.lock);
     app->out.visible = true;
     app->out.height_px = 200;
     
     // Start reader thread
     uintptr_t thread = _beginthreadex(NULL, 0, output_reader_thread, app, 0, NULL);
     app->out.reader_thread = (HANDLE)thread;
-    
+
+    if (!thread) {
+    MessageBoxW(app->hwnd, L"Failed to start reader thread!", L"Error", MB_OK);
+    return false;
+}
+
     return true;
 }
 

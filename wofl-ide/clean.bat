@@ -6,4 +6,5 @@ if exist dist\wofl-ide-debug.exe del /f /q dist\wofl-ide-debug.exe
 if exist dist\wofl-ide-debug.pdb del /f /q dist\wofl-ide-debug.pdb
 if exist dist\wofl-ide.exe del /f /q dist\wofl-ide.exe
 if exist dist\wofl-ide.pdb del /f /q dist\wofl-ide.pdb
+if exist *.obj rm *.obj
 echo Cleaned.

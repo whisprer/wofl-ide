@@ -308,13 +308,15 @@ bool theme_save_to_file(const ThemeConfig *theme, const wchar_t *path) {
  * Apply theme to application
  */
 void theme_apply(AppState *app, const ThemeConfig *theme) {
+    app->theme.col_output_fg = theme->output_fg;
+
     // Update color scheme
     app->theme.col_bg = theme->bg;
     app->theme.col_fg = theme->fg;
     app->theme.col_sel_bg = theme->selection_bg;
     app->theme.col_status_bg = theme->status_bg;
     app->theme.col_output_bg = theme->output_bg;
-    
+   
     // Update syntax colors
     app->theme.syn_colors[TK_TEXT] = theme->fg;
     app->theme.syn_colors[TK_KW] = theme->syntax_keyword;

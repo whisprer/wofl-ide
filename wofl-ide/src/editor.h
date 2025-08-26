@@ -117,6 +117,7 @@ typedef struct {
     COLORREF col_sel_bg;
     COLORREF col_status_bg;
     COLORREF col_output_bg;
+    COLORREF col_output_fg;
     COLORREF syn_colors[TK_MAX];
 } Theme;
 

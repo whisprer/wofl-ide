@@ -1,0 +1,42 @@
+Folder PATH listing for volume D:/
+Volume serial number is xxxx-x00D
+D:.
+|   build_debug.bat
+|   filelist.txt
+|       
++---dist
+|       wofl-ide-debug.exe
+|       wofl-ide-debug.ilk
+|       wofl-ide-debug.pdb
+|       
+\---src
+        build.sh
+        cmd_palette.c
+        config.c
+        editor.h
+        editor_buffer.c
+        editor_render.c
+        find.c
+        main_win32.c
+        plugin_git.c
+        plugin_git.h
+        plugin_system.c
+        plugin_system.h
+        run_exec_win32.c
+        syntax_asm.c
+        syntax_c.c
+        syntax_core.c
+        syntax_cpp.c
+        syntax_css.c
+        syntax_csv.c
+        syntax_go.c
+        syntax_html.c
+        syntax_js.c
+        syntax_json.c
+        syntax_lua.c
+        syntax_md.c
+        syntax_py.c
+        syntax_rs.c
+        syntax_sh.c
+        theme_system.
+        theme_system.h

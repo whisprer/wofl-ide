@@ -1,6 +1,3 @@
-# IDle-widE
-A minimal ide for me, wofl, who am idle and begins with`w`, hence w[ide].
-
 # WOFL IDE
 
 A **ruthlessly minimal** yet fully functional IDE that prioritizes speed and a tiny footprint above all else. Perfect for systems with limited resources or developers who prefer a no-frills, distraction-free coding experience.
@@ -19,13 +16,16 @@ WOFL IDE follows an ultra-minimalist approach:
 ## Features
 
 ### Core Functionality
-- **Syntax highlighting** for 12+ common languages (C, C++, Python, JavaScript, Go, Rust, HTML, CSS, JSON, Markdown, Shell, Assembly)
+- **Syntax highlighting** for 12+ common languages (C, C++, Python, JavaScript, Go, Rust, HTML, CSS, JSON, Markdown, Shell, Assembly, CSV)
 - **Fast text editing** with gap buffer for efficient insertions/deletions
 - **Basic file operations** - Open, save, create new files
 - **Integrated build system** - Execute files or run build scripts
 - **Built-in console** - View program output without leaving the editor
 - **Find functionality** - Quick text search with F3/Shift+F3
 - **Command palette** - Ctrl+P for quick actions
+- **Git integration** - Basic git commands and configurable auto-backup
+- **Plugin system** - Modular architecture for extending functionality
+- **Theme system** - Customizable color schemes and UI themes
 
 ### User Interface
 - **Single pane design** - Clean canvas, no sidebars or complex menus
@@ -128,9 +128,9 @@ word_wrap=false
 
 ## Performance
 
-- **Startup time:** < 50ms
-- **Memory usage:** < 10MB typical
-- **File size:** ~200KB executable
+- **Startup time:** < 10ms
+- **Memory usage:** < 2MB typical
+- **File size:** ~150KB executable
 - **Supports files:** Up to 1M+ lines efficiently
 
 ## Contributing
@@ -152,7 +152,7 @@ This project values simplicity and minimalism. When contributing:
 
 ## License
 
-[Add your chosen license here]
+Hyb MIT & CC0
 
 ## Acknowledgments
 
