@@ -1,5 +1,7 @@
 \# WOFL IDE v.0.0.2
 
+[![wakatime](https://wakatime.com/badge/github/whisprer/wofl-IDE.svg)](https://wakatime.com/badge/github/whisprer/wofl-IDE)
+
 A \*\*ruthlessly minimal\*\* yet fully functional IDE that prioritizes speed and a tiny footprint above all else. Perfect for systems with limited resources or developers who prefer a no-frills, distraction-free coding experience.
 
 Available for both \*\*Windows\*\* (Win32) and \*\*Linux\*\* (SDL2) platforms.
